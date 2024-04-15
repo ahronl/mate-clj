@@ -1,11 +1,30 @@
 (ns mate-clj.core)
 
+(defn drop-debug [sexp]
+  (if (list? sexp)
+    (remove #(and (list? %) (-> % first (= 'debug*))) sexp)
+    sexp))
+
+(defmacro debug* [args]
+  `(let [args# ~args]
+     (tap> (sorted-map :fn
+                       (-> (quote ~args) drop-debug)
+                       :ret
+                       args#))
+     args#))
+
+(defmacro d->> [& fns]
+  `(->> ~@(interleave fns (repeat 'debug*))))
+
+(defmacro d-> [& fns]
+  `(-> ~@(interleave fns (repeat 'debug*))))
+
 (def ^:private ^:const arrow-str "=>")
 
 (defn- println-macro [threaded result]
   `(println (quote ~threaded) ~arrow-str ~result))
 
-(defmacro d->
+(comment (defmacro d->
   [x & forms]
   (loop [x x, forms forms, macro-expansion (list)]
     (if forms
@@ -29,7 +48,7 @@
              print-to-be-evaluated (println-macro threaded (eval threaded))
              macro-expanded (conj macro-expansion print-to-be-evaluated)]
          (recur threaded (next forms) macro-expanded))
-      (conj `(do ~@(reverse macro-expansion) ~x)))))
+      (conj `(do ~@(reverse macro-expansion) ~x))))))
 
 (defmacro dsome-> [x & forms]
   (loop [x x, forms forms, macro-expansion (list)]
